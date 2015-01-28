@@ -19,6 +19,7 @@ local grid = {}
 local fnutils = require "mjolnir.fnutils"
 local window = require "mjolnir.window"
 local alert = require "mjolnir.alert"
+local screen = require "mjolnir.screen"
 
 
 --- mjolnir.bg.grid.MARGINX = 5
@@ -41,6 +42,21 @@ grid.GRIDHEIGHT = 3
 --- The number of cells wide the grid is.
 grid.GRIDWIDTH = 3
 
+-- The table containing cells
+local main = screen.mainscreen():frame()
+local cells = {
+  {x = 0,        y = 0,        w = main.w/2, h = main.h/2},
+  {x = main.w/2, y = 0,        w = main.w/2, h = main.h/2},
+  {x = 0,        y = main.h/2, w = main.w/2, h = main.h/2},
+  {x = main.w/2, y = main.h/2, w = main.w/2, h = main.h/2}
+}
+
+function grid.set2(win, cell)
+  for k,v in pairs(cells[cell]) do
+  end
+  win:setframe(cells[cell])
+end
+
 local function round(num, idp)
   local mult = 10^(idp or 0)
   return math.floor(num * mult + 0.5) / mult
@@ -52,13 +68,13 @@ end
 function grid.get(win)
   local winframe = win:frame()
   local screenrect = win:screen():frame()
-  local thirdscreenwidth = screenrect.w / grid.GRIDWIDTH
-  local halfscreenheight = screenrect.h / grid.GRIDHEIGHT
+  local cellwidth = screenrect.w / grid.GRIDWIDTH
+  local cellheight = screenrect.h / grid.GRIDHEIGHT
   return {
-    x = round((winframe.x - screenrect.x) / thirdscreenwidth),
-    y = round((winframe.y - screenrect.y) / halfscreenheight),
-    w = math.max(1, round(winframe.w / thirdscreenwidth)),
-    h = math.max(1, round(winframe.h / halfscreenheight)),
+    x = round((winframe.x - screenrect.x) / cellwidth),
+    y = round((winframe.y - screenrect.y) / cellheight),
+    w = math.max(1, round(winframe.w / cellwidth)),
+    h = math.max(1, round(winframe.h / cellheight)),
   }
 end
 
@@ -67,13 +83,13 @@ end
 --- Sets the cell this window should be on
 function grid.set(win, cell, screen)
   local screenrect = screen:frame()
-  local thirdscreenwidth = screenrect.w / grid.GRIDWIDTH
-  local halfscreenheight = screenrect.h / grid.GRIDHEIGHT
+  local cellwidth = screenrect.w / grid.GRIDWIDTH
+  local cellheight = screenrect.h / grid.GRIDHEIGHT
   local newframe = {
-    x = (cell.x * thirdscreenwidth) + screenrect.x,
-    y = (cell.y * halfscreenheight) + screenrect.y,
-    w = cell.w * thirdscreenwidth,
-    h = cell.h * halfscreenheight,
+    x = (cell.x * cellwidth) + screenrect.x,
+    y = (cell.y * cellheight) + screenrect.y,
+    w = cell.w * cellwidth,
+    h = cell.h * cellheight,
   }
 
   newframe.x = newframe.x + grid.MARGINX
