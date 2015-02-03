@@ -42,19 +42,78 @@ grid.GRIDHEIGHT = 3
 --- The number of cells wide the grid is.
 grid.GRIDWIDTH = 3
 
--- The table containing cells
+
+local cellmeta = {__mode='v'}
+
+function newcell(frame)
+  return {frame=frame}
+end
+
+-- set vertical=false for horizontal neighbors
+function setneighbors(lower, heigher, vertical)
+  if not lower.nbrs then lower.nbrs = setmetatable({}, cellmeta) end
+  if not heigher.nbrs then heigher.nbrs = setmetatable({}, cellmeta) end
+  lower.nbrs[vertical and "down" or "right"] = heigher
+  heigher.nbrs[vertical and "up" or "left"] = lower
+end
+
 local main = screen.mainscreen():frame()
-local cells = {
-  {x = 0,        y = 0,        w = main.w/2, h = main.h/2},
-  {x = main.w/2, y = 0,        w = main.w/2, h = main.h/2},
+local frames = {
+  {x = 0,        y = 22,       w = main.w/2, h = main.h/2},
+  {x = main.w/2, y = 22,       w = main.w/2, h = main.h/2},
   {x = 0,        y = main.h/2, w = main.w/2, h = main.h/2},
   {x = main.w/2, y = main.h/2, w = main.w/2, h = main.h/2}
 }
 
-function grid.set2(win, cell)
-  for k,v in pairs(cells[cell]) do
+local cells = {}
+for i,v in ipairs(frames) do
+  cells[i] = newcell(v)
+end
+
+setneighbors(cells[1], cells[2], false)
+setneighbors(cells[1], cells[3], true)
+setneighbors(cells[3], cells[4], false)
+setneighbors(cells[2], cells[4], true)
+
+
+--- mjolnir.bg.grid.get(win)
+--- Function
+--- Gets the cell this window is on
+function grid.get(win)
+  local frame = win:frame()
+  for _,cell in ipairs(cells) do
+    if frame.x == cell.frame.x and frame.y == cell.frame.y and
+      frame.w == cell.frame.w and frame.h == cell.frame.h and
+      cell.win == win then
+      return cell
+    end
   end
-  win:setframe(cells[cell])
+end
+
+-- function grid.get(win)
+--   local winframe = win:frame()
+--   local screenrect = win:screen():frame()
+--   local cellwidth = screenrect.w / grid.GRIDWIDTH
+--   local cellheight = screenrect.h / grid.GRIDHEIGHT
+--   return {
+--     x = round((winframe.x - screenrect.x) / cellwidth),
+--     y = round((winframe.y - screenrect.y) / cellheight),
+--     w = math.max(1, round(winframe.w / cellwidth)),
+--     h = math.max(1, round(winframe.h / cellheight)),
+--   }
+-- end
+
+--- mjolnir.bg.grid.set(win, grid, screen)
+--- Function
+--- Sets the cell this window should be on
+function grid.set(win, cell)
+  win:setframe(cell.frame)
+  cell.win = win
+end
+
+function grid.seti(win, idx)
+  win:setframe(cells[idx].frame)
+  cells[idx].win = win
 end
 
 local function round(num, idp)
@@ -62,50 +121,47 @@ local function round(num, idp)
   return math.floor(num * mult + 0.5) / mult
 end
 
---- mjolnir.bg.grid.get(win)
---- Function
---- Gets the cell this window is on
-function grid.get(win)
-  local winframe = win:frame()
-  local screenrect = win:screen():frame()
-  local cellwidth = screenrect.w / grid.GRIDWIDTH
-  local cellheight = screenrect.h / grid.GRIDHEIGHT
-  return {
-    x = round((winframe.x - screenrect.x) / cellwidth),
-    y = round((winframe.y - screenrect.y) / cellheight),
-    w = math.max(1, round(winframe.w / cellwidth)),
-    h = math.max(1, round(winframe.h / cellheight)),
-  }
+-- function grid.set(win, cell, screen)
+--   local screenrect = screen:frame()
+--   local cellwidth = screenrect.w / grid.GRIDWIDTH
+--   local cellheight = screenrect.h / grid.GRIDHEIGHT
+--   local newframe = {
+--     x = (cell.x * cellwidth) + screenrect.x,
+--     y = (cell.y * cellheight) + screenrect.y,
+--     w = cell.w * cellwidth,
+--     h = cell.h * cellheight,
+--   }
+
+--   newframe.x = newframe.x + grid.MARGINX
+--   newframe.y = newframe.y + grid.MARGINY
+--   newframe.w = newframe.w - (grid.MARGINX * 2)
+--   newframe.h = newframe.h - (grid.MARGINY * 2)
+
+--   win:setframe(newframe)
+-- end
+
+function grid.adjust_left_border(cell, by, secondary)
+  local retile = cell.win and grid.get(cell.win) == cell
+  cell.frame.x = cell.frame.x - by
+  cell.frame.w = cell.frame.w + by
+  if retile then grid.set(cell.win, cell) end
+
+  if not secondary then
+    if cell.nbrs.left then
+      grid.adjust_right_border(cell.nbrs.left, -by, true)
+    end
+  end
 end
 
---- mjolnir.bg.grid.set(win, grid, screen)
---- Function
---- Sets the cell this window should be on
-function grid.set(win, cell, screen)
-  local screenrect = screen:frame()
-  local cellwidth = screenrect.w / grid.GRIDWIDTH
-  local cellheight = screenrect.h / grid.GRIDHEIGHT
-  local newframe = {
-    x = (cell.x * cellwidth) + screenrect.x,
-    y = (cell.y * cellheight) + screenrect.y,
-    w = cell.w * cellwidth,
-    h = cell.h * cellheight,
-  }
+function grid.adjust_right_border(cell, by, secondary)
+  local retile = cell.win and grid.get(cell.win) == cell
+  cell.frame.w = cell.frame.w + by
+  if retile then grid.set(cell.win, cell) end
 
-  newframe.x = newframe.x + grid.MARGINX
-  newframe.y = newframe.y + grid.MARGINY
-  newframe.w = newframe.w - (grid.MARGINX * 2)
-  newframe.h = newframe.h - (grid.MARGINY * 2)
-
-  win:setframe(newframe)
-end
-
---- mjolnir.bg.grid.snap(win)
---- Function
---- Snaps the window into a cell
-function grid.snap(win)
-  if win:isstandard() then
-    grid.set(win, grid.get(win), win:screen())
+  if not secondary then
+    if cell.nbrs.right then
+      grid.adjust_left_border(cell.nbrs.right, -by, true)
+    end
   end
 end
 
